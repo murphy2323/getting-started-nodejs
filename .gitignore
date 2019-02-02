@@ -1,0 +1,4 @@
+.wercker
+node_modules
+package-lock.json
+wercker.env

@@ -1,0 +1,21 @@
+# This template file will have its environment variables expanded
+# and the .template extension removed by the bash-template Wercker step.
+# See wercker.yml.
+
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: getting-started-nodejs-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: getting-started-nodejs
+    spec:
+      containers:
+      - name: getting-started-nodejs
+        image: murphy2323/getting-started-nodejs:v2
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
