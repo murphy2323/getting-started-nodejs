@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: getting-started-nodejs
-        image: murphy2323/getting-started-nodejs:v2
+        image: murphy2323/getting-started-nodejs:$WERCKER_GIT_COMMIT
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
