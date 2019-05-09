@@ -25,3 +25,4 @@ node {
             app.push("latest")
         }
     }
+}
