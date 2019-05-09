@@ -1,62 +1,27 @@
-pipeline {
-  agent any
-  environment {
-    ORG = 'murphy2323'
-    APP_NAME = 'getting-started-nodejs'
-    CHARTMUSEUM_CREDS = credentials('jenkins-x-chartmuseum')
-  }
-  stages {
-    stage('CI Build and push snapshot') {
-      when {
-        branch 'PR-*'
-      }
-      environment {
-        PREVIEW_VERSION = "0.0.0-SNAPSHOT-$BRANCH_NAME-$BUILD_NUMBER"
-        PREVIEW_NAMESPACE = "$APP_NAME-$BRANCH_NAME".toLowerCase()
-        HELM_RELEASE = "$PREVIEW_NAMESPACE".toLowerCase()
-      }
-      steps {
-        sh "npm install"
-        sh "CI=true DISPLAY=:99 npm test"
-        sh "export VERSION=$PREVIEW_VERSION && skaffold build -f skaffold.yaml"
-        sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:$PREVIEW_VERSION"
-        dir('./charts/preview') {
-          sh "make preview"
-          sh "jx preview --app $APP_NAME --dir ../.."
+node {
+    def app
+
+    stage('Clone repository') {
+        /* Let's make sure we have the repository cloned to our workspace */
+
+        checkout scm
+    }
+
+    stage('Build image') {
+        /* This builds the actual image; synonymous to
+         * docker build on the command line */
+
+        app = docker.build("murphy2323/getting-started-nodejs")
+    }
+
+
+    stage('Push image') {
+        /* Finally, we'll push the image with two tags:
+         * First, the incremental build number from Jenkins
+         * Second, the 'latest' tag.
+         * Pushing multiple tags is cheap, as all the layers are reused. */
+        docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+            app.push("${env.BUILD_NUMBER}")
+            app.push("latest")
         }
-      }
     }
-    stage('Build Release') {
-      when {
-        branch 'master'
-      }
-      steps {
-        git 'https://github.com/murphy2323/getting-started-nodejs.git'
-
-        // so we can retrieve the version in later steps
-        sh "echo \$(jx-release-version) > VERSION"
-        sh "jx step tag --version \$(cat VERSION)"
-        sh "npm install"
-        sh "CI=true DISPLAY=:99 npm test"
-        sh "export VERSION=`cat VERSION` && skaffold build -f skaffold.yaml"
-        sh "jx step post build --image $DOCKER_REGISTRY/$ORG/$APP_NAME:\$(cat VERSION)"
-      }
-    }
-    stage('Promote to Environments') {
-      when {
-        branch 'master'
-      }
-      steps {
-        dir('./charts/getting-started-nodejs') {
-          sh "jx step changelog --batch-mode --version v\$(cat ../../VERSION)"
-
-          // release the helm chart
-          sh "jx step helm release"
-
-          // promote through all 'Auto' promotion Environments
-          sh "jx promote -b --all-auto --timeout 1h --version \$(cat ../../VERSION)"
-        }
-      }
-    }
-  }
-}
